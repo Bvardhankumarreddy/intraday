@@ -227,5 +227,8 @@ metadata:
   namespace: nse-intraday
 spec:
   type: ClusterIP
+  # Pinned: the host's Caddy proxies intraday.sidestream.in to this address
+  # (with HTTPS and a login). Changing it requires updating /etc/caddy/Caddyfile.
+  clusterIP: 10.43.71.225
   selector: {app: nse-dashboard}
   ports: [{port: 8501, targetPort: 8501, name: http}]

@@ -14,7 +14,7 @@ manual.
 | Data | PVC `nse-data` (5 Gi, local-path) mounted at `/app/data` (paper DBs, ledgers, reports, logs, backups) |
 | Secrets | Secret `nse-env` (key `env` = the `.env` file), mounted read-only at `/secrets/env` |
 | Schedules (IST) | CronJob `session` 08:55 Mon–Fri: `python -m app.integrated run` (both arms + agent + monitoring; skips NSE holidays itself). CronJob `post-session` 16:00 Mon–Fri: report, learning, full monitoring, backups, retention |
-| Dashboard | Deployment `dashboard` + ClusterIP Service on 8501. **Not public** |
+| Dashboard | Deployment `dashboard` + ClusterIP Service `10.43.71.225:8501` (pinned). Public URL **https://intraday.sidestream.in** through the host's Caddy: Let's Encrypt TLS, **login required** (basic auth, user `nse`), HSTS, `noindex`. DNS: Route 53 A record in zone `sidestream.in` → Elastic IP `3.111.119.69` |
 | Pods | non-root uid 10001, read-only root filesystem, no capabilities, seccomp RuntimeDefault, CPU and memory limits |
 
 Integrated evaluation started 2026-10-20 (from 2026-10-21): baseline
@@ -43,7 +43,26 @@ cd /opt/nse-intraday/src && sudo sh deploy/k8s/run-once.sh python -m app.integra
 sudo sh deploy/k8s/run-once.sh python -m app.monitoring status
 ```
 
-**Dashboard (private).** On the server, run
+**Dashboard: https://intraday.sidestream.in** (user `nse`; the password is in
+`~/.nse-dashboard-credentials` on the Mac that deployed it, mode 600, and only
+its bcrypt hash is on the server). Caddy site block in `/etc/caddy/Caddyfile`
+(backed up before the change):
+
+```
+intraday.sidestream.in {
+	basic_auth { nse <bcrypt hash> }
+	header { Strict-Transport-Security "max-age=31536000"; X-Robots-Tag "noindex, nofollow"; X-Frame-Options "DENY"; Referrer-Policy "no-referrer"; -Server }
+	reverse_proxy 10.43.71.225:8501
+}
+```
+
+Change the password: run `caddy hash-password` on the server (it reads the new
+password from the prompt), replace the hash in the Caddyfile, then
+`sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy`.
+Remove public access: delete that site block and reload Caddy, then delete the
+Route 53 record `intraday.sidestream.in`.
+
+**Without the public URL (SSH tunnel).** On the server, run
 `sudo k3s kubectl -n nse-intraday port-forward svc/dashboard 8501:8501`.
 On your Mac, run
 `ssh -i ~/.ssh/sidestream-keypair.pem -L 8501:localhost:8501 ubuntu@3.111.119.69`,
