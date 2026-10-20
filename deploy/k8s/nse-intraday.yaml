@@ -1,0 +1,231 @@
+# NSE intraday paper-trading platform on Kubernetes (k3s single node).
+# Namespace-scoped; caps every pod so it cannot starve other workloads on the host.
+# Image: built on the node and imported into k3s (no registry). Replace IMAGE_TAG.
+# Nothing is exposed outside the cluster: the dashboard Service is ClusterIP only.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nse-intraday
+  labels:
+    app.kubernetes.io/part-of: nse-intraday
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: nse-intraday-quota
+  namespace: nse-intraday
+spec:
+  hard:
+    requests.cpu: "1500m"
+    requests.memory: 2Gi
+    limits.cpu: "3"
+    limits.memory: 4Gi
+    pods: "6"
+    persistentvolumeclaims: "1"
+    services.loadbalancers: "0"
+    services.nodeports: "0"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: nse-intraday-limits
+  namespace: nse-intraday
+spec:
+  limits:
+    - type: Container
+      default: {cpu: "500m", memory: 768Mi}
+      defaultRequest: {cpu: "100m", memory: 256Mi}
+      max: {cpu: "1", memory: 1536Mi}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nse-data
+  namespace: nse-intraday
+spec:
+  accessModes: ["ReadWriteOnce"]   # single node: every pod of the namespace runs here
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi
+---
+# Default-deny ingress for the namespace; only the dashboard port is reachable,
+# and only from inside the cluster (kubectl port-forward).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-ingress-except-dashboard
+  namespace: nse-intraday
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+  ingress:
+    - ports: [{port: 8501, protocol: TCP}]
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: session
+  namespace: nse-intraday
+spec:
+  schedule: "55 8 * * 1-5"          # 08:55 IST; the app itself skips NSE holidays
+  timeZone: "Asia/Kolkata"
+  concurrencyPolicy: Forbid           # never two sessions at once
+  startingDeadlineSeconds: 3600       # a late start still runs (it resumes safely)
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 4                 # a crashed session restarts and resumes from its DB
+      activeDeadlineSeconds: 28800    # 8 h hard stop
+      template:
+        metadata:
+          labels: {app: nse-session}
+        spec:
+          restartPolicy: OnFailure
+          terminationGracePeriodSeconds: 90   # SIGTERM -> stops between steps, keeps positions
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            fsGroup: 10001
+            seccompProfile: {type: RuntimeDefault}
+          containers:
+            - name: session
+              image: nse-intraday:IMAGE_TAG
+              imagePullPolicy: Never
+              command: ["python", "-m", "app.integrated", "run"]
+              resources:
+                requests: {cpu: "250m", memory: 512Mi}
+                limits: {cpu: "1", memory: 1536Mi}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: {drop: ["ALL"]}
+              volumeMounts:
+                - {name: data, mountPath: /app/data}
+                - {name: secrets, mountPath: /secrets, readOnly: true}
+                - {name: tmp, mountPath: /tmp}
+          volumes:
+            - name: data
+              persistentVolumeClaim: {claimName: nse-data}
+            - name: secrets
+              secret: {secretName: nse-env, defaultMode: 0400}
+            - name: tmp
+              emptyDir: {sizeLimit: 256Mi}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: post-session
+  namespace: nse-intraday
+spec:
+  schedule: "0 16 * * 1-5"           # 16:00 IST: reports, learning, monitoring, backups
+  timeZone: "Asia/Kolkata"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 7200
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 3600
+      template:
+        metadata:
+          labels: {app: nse-post-session}
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            fsGroup: 10001
+            seccompProfile: {type: RuntimeDefault}
+          containers:
+            - name: post-session
+              image: nse-intraday:IMAGE_TAG
+              imagePullPolicy: Never
+              command: ["/app/deploy/post_session.sh"]
+              resources:
+                requests: {cpu: "200m", memory: 384Mi}
+                limits: {cpu: "1", memory: 1536Mi}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: {drop: ["ALL"]}
+              volumeMounts:
+                - {name: data, mountPath: /app/data}
+                - {name: secrets, mountPath: /secrets, readOnly: true}
+                - {name: tmp, mountPath: /tmp}
+          volumes:
+            - name: data
+              persistentVolumeClaim: {claimName: nse-data}
+            - name: secrets
+              secret: {secretName: nse-env, defaultMode: 0400}
+            - name: tmp
+              emptyDir: {sizeLimit: 256Mi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard
+  namespace: nse-intraday
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: nse-dashboard}
+  template:
+    metadata:
+      labels: {app: nse-dashboard}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: dashboard
+          image: nse-intraday:IMAGE_TAG
+          imagePullPolicy: Never
+          command: ["streamlit", "run", "app/dashboard.py", "--server.address=0.0.0.0",
+                    "--server.port=8501", "--server.headless=true",
+                    "--browser.gatherUsageStats=false"]
+          ports: [{containerPort: 8501, name: http}]
+          readinessProbe:
+            httpGet: {path: /_stcore/health, port: 8501}
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          livenessProbe:
+            httpGet: {path: /_stcore/health, port: 8501}
+            initialDelaySeconds: 30
+            periodSeconds: 60
+          resources:
+            requests: {cpu: "100m", memory: 256Mi}
+            limits: {cpu: "500m", memory: 768Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          volumeMounts:
+            - {name: data, mountPath: /app/data}
+            - {name: secrets, mountPath: /secrets, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: nse-data}
+        - name: secrets
+          secret: {secretName: nse-env, defaultMode: 0400}
+        - name: tmp
+          emptyDir: {sizeLimit: 256Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dashboard
+  namespace: nse-intraday
+spec:
+  type: ClusterIP
+  selector: {app: nse-dashboard}
+  ports: [{port: 8501, targetPort: 8501, name: http}]
