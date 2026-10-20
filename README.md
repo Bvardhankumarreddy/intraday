@@ -63,6 +63,8 @@ python3.13 -m venv .venv
 # change it during an evaluation. --dry-run shows the selection without writing.
 .venv/bin/python -m app.data.universe_builder [--dry-run] [--force]
 
+# Server deployment (k3s, namespace nse-intraday): see docs/deployment.md
+
 # Live paper-trading evaluation - see docs/evaluation.md (fill config/universe.csv first)
 .venv/bin/python -m app.evaluation start --name "ORB initial 20" --from 2026-10-21
 .venv/bin/python -m app.evaluation run          # each trading day, before 09:15 IST
