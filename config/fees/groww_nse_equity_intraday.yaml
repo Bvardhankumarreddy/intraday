@@ -1,0 +1,109 @@
+# Groww - NSE equity intraday (MIS) charges.
+#
+# Every rate below was read from the cited source on the retrieval date.
+# Re-verify before relying on it: brokers and regulators change rates.
+# All rates are % of the order's turnover (price x quantity) unless noted.
+# Rates are quoted strings so they load as exact decimals.
+
+schedule_id: groww-nse-eq-intraday-2026-10
+broker: groww
+segment: nse_equity_intraday
+illustrative: false
+version: "2026-10-19"
+verified_on: 2026-10-19
+notes:
+  - "Rounding: Groww does not publish per-charge rounding rules. Every component
+    is rounded half-up to the paisa per order (assumption, not a published rule)."
+  - "Groww's pricing page lists NSE exchange charges as 0.00297% plus IPFT
+    0.0001% (the split before 1 Mar 2026). This schedule uses NSE's current
+    split (0.0030699% + 0.0000001%). The combined total, Rs 307 per crore per
+    side, is identical, so the cost is the same either way."
+  - "Not included because they do not apply to a normally closed intraday trade:
+    DP charges (delivery only) and the Rs 50 + GST auto square-off charge, which
+    applies only if a position is still open at 3:20 PM."
+
+brokerage:
+  # Lower of 0.1% or Rs 20 per executed order. If that is below Rs 5, the charge
+  # is the lower of Rs 5 or 2.5% of trade value.
+  rate_pct: "0.1"
+  cap_per_order: "20"
+  min_per_order: "5"
+  min_pct_of_value: "2.5"
+  rounding: paisa
+  effective_from: 2026-10-19   # earliest date verified; actual start date not published
+  source:
+    name: Groww Help - What are intraday charges?
+    url: https://groww.in/help/stocks/sx-pricing/what-are-intraday-charges
+    retrieved_on: 2026-10-19
+    note: "Also on https://groww.in/pricing ('Rs 20 or 0.1% per executed order whichever is lower, minimum Rs 5')"
+
+gst:
+  rate_pct: "18"
+  effective_from: 2026-10-19   # earliest date verified
+  source:
+    name: Groww pricing - GST on brokerage, exchange, SEBI and IPFT charges
+    url: https://groww.in/pricing
+    retrieved_on: 2026-10-19
+
+charges:
+  - kind: stt
+    name: Securities Transaction Tax (non-delivery sale)
+    rate_pct: "0.025"
+    side: sell
+    gst_applicable: false
+    rounding: paisa
+    effective_from: 2026-04-01
+    source:
+      name: NSE circular NSE/FATAX/73524 (Finance Act 2026), row 3 - no change
+      url: https://nsearchives.nseindia.com/content/circulars/FATAX73524.pdf
+      retrieved_on: 2026-10-19
+
+  - kind: stamp_duty
+    name: Stamp duty (non-delivery purchase)
+    rate_pct: "0.003"
+    side: buy
+    gst_applicable: false
+    rounding: paisa
+    effective_from: 2026-10-19   # earliest date verified
+    source:
+      name: Groww pricing / help - stamp duty 0.003% (only buy) for intraday
+      url: https://groww.in/help/stocks/sx-pricing/what-are-intraday-charges
+      retrieved_on: 2026-10-19
+      note: Rate under the Indian Stamp Act as amended (in force since 1 Jul 2020)
+
+  - kind: exchange_transaction
+    name: NSE transaction charge (cash market)
+    rate_pct: "0.0030699"     # Rs 306.99 per crore, each side
+    side: both
+    gst_applicable: true
+    rounding: paisa
+    effective_from: 2026-03-01
+    source:
+      name: NSE circular NSE/FA/73061 dated 27 Feb 2026
+      url: https://nsearchives.nseindia.com/content/circulars/FA73061.pdf
+      retrieved_on: 2026-10-19
+
+  - kind: ipft
+    name: NSE IPFT contribution (cash market)
+    rate_pct: "0.0000001"     # Rs 0.01 per crore, each side
+    side: both
+    gst_applicable: true
+    rounding: paisa
+    effective_from: 2026-03-01
+    source:
+      name: NSE circular NSE/FA/73061 dated 27 Feb 2026
+      url: https://nsearchives.nseindia.com/content/circulars/FA73061.pdf
+      retrieved_on: 2026-10-19
+
+  - kind: sebi_turnover_fee
+    name: SEBI turnover fee
+    rate_pct: "0.0001"        # Rs 10 per crore, each side
+    side: both
+    gst_applicable: true
+    rounding: paisa
+    effective_from: 2026-10-19   # earliest date verified; SEBI rate in force since 1 Apr 2019
+    source:
+      name: Groww pricing - SEBI turnover charge 0.0001% (buy & sell)
+      url: https://groww.in/pricing
+      retrieved_on: 2026-10-19
+      note: SEBI (Stock Brokers) Regulations fee schedule, Rs 10 per crore

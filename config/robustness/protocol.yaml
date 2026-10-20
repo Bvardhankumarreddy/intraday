@@ -1,0 +1,136 @@
+# Phase 7 robustness evaluation protocol: PREDECLARED.
+#
+# Every rule here was fixed on 2026-10-19, before any historical market data
+# was fetched or any strategy result was seen. `python -m app.robustness freeze`
+# copies this file, with its SHA-256, into the frozen baseline. Changing it
+# afterwards does not affect an existing frozen baseline. A changed protocol
+# needs a new baseline name and a fresh evaluation.
+#
+# Nothing in this file is ever tuned from results, and nothing is selected
+# automatically.
+
+protocol_version: p7-v1
+
+walk_forward:
+  # Window lengths in tradable sessions (after warm-up). null = derive from
+  # the data with the rule below (S = tradable sessions):
+  #   test       = max(min_test_sessions, floor(S / 8))
+  #   validation = test
+  #   train      = 2 x test
+  #   folds roll forward by `test`, so the test windows tile the data after
+  #   the first train + validation without overlapping.
+  # Why: a test window needs at least a trading week to hold a few signals;
+  # S/8 gives about 5 folds at any data length. Training is twice the test so
+  # each fold has more history for parameter-stability checks than it is
+  # judged on.
+  train_sessions: null
+  validation_sessions: null
+  test_sessions: null
+  min_test_sessions: 5
+
+cost_scenarios:
+  # Multipliers apply to the frozen execution assumptions; fee rates are
+  # always the frozen broker schedule. Fees are never double counted: spread
+  # and slippage are separate cost lines on reference fill prices.
+  - name: base
+  - name: slippage_x2
+    slippage_multiplier: 2
+  - name: slippage_x4
+    slippage_multiplier: 4
+  - name: spread_x2
+    spread_multiplier: 2
+  - name: spread_x3
+    spread_multiplier: 3
+  - name: target_trade_through
+    # Less favourable fills: a target counts only if traded 0.05% through.
+    target_trade_through_pct: 0.05
+  - name: conservative
+    slippage_multiplier: 2
+    spread_multiplier: 2
+    target_trade_through_pct: 0.05
+
+sensitivity:
+  # One parameter at a time around the frozen baseline. All values are run
+  # and reported, including unfavourable ones.
+  one_at_a_time:
+    - parameter: strategy.relative_volume_threshold
+      values: [1.2, 1.5, 2.0, 2.5]
+    - parameter: strategy.opening_range_minutes
+      values: [15, 30]
+    - parameter: strategy.stop_reference
+      values: [signal_candle_low, opening_range_low, opening_range_mid]
+    - parameter: strategy.min_reward_risk
+      values: [1.5, 2.0, 2.5, 3.0]
+    - parameter: strategy.use_ema_filter
+      values: [false, true]
+    - parameter: screening.min_avg_traded_value
+      values: [2500000, 5000000, 10000000]
+    - parameter: screening.max_spread_pct
+      values: [0.05, 0.10, 0.20]
+      untestable: "no historical bid/ask quotes: the spread screen cannot be applied to
+        historical candles, so every value gives the same result"
+  # Two-parameter grid, used for the heatmap.
+  grid_2d:
+    x: {parameter: strategy.relative_volume_threshold, values: [1.2, 1.5, 2.0, 2.5]}
+    y: {parameter: strategy.min_reward_risk, values: [1.5, 2.0, 2.5, 3.0]}
+  # Adjacent one-at-a-time values are flagged UNSTABLE when net expectancy
+  # changes sign, or when the trade count changes by more than this fraction.
+  unstable_trade_count_change: 0.5
+
+regimes:
+  # Market proxy: this symbol's candles if it is in the dataset, otherwise
+  # the equal-weight average of every dataset symbol (labelled as such). The
+  # proxy is never part of the strategy universe.
+  benchmark_symbol: NIFTYBEES
+  # Session trend from the proxy's open-to-close return (%).
+  trend_threshold_pct: 0.75
+  # Volatility = proxy (high - low) / open for the session. Liquidity = sum of
+  # close x volume over all strategy symbols. Both are compared with the
+  # median of the previous `lookback_sessions` sessions (prior data only).
+  # Sessions without that much history are "unclassified".
+  lookback_sessions: 20
+  high_volatility_ratio: 1.5
+  low_volatility_ratio: 0.75
+  high_liquidity_ratio: 1.25
+  low_liquidity_ratio: 0.8
+  # Entry-price bands (INR), left-closed.
+  price_bands: [50, 60, 70, 80, 90, 100]
+  # Groups with fewer trades are shown but marked too small to interpret.
+  min_trades_to_interpret: 10
+
+comparison_baselines:
+  # Chosen before any results. See docs/robustness.md for why each is relevant.
+  # passive_liquid_long: each session, at entry_time, buy as many whole
+  # shares as cash allows of the eligible stock (same screen, price band and
+  # liquidity rules, judged at entry_time) with the highest average traded
+  # value, at the open of the candle starting at entry_time. Exit at the
+  # open of the first candle at or after the strategy's eod_exit_time. Same
+  # fees, spread and slippage. No stop.
+  entry_time: "09:30"
+  # benchmark_proxy: the same rule applied to regimes.benchmark_symbol.
+
+statistics:
+  bootstrap_resamples: 5000
+  confidence: 0.95
+  seed: 20261019
+  # Moving-block bootstrap over sessions. Trades on the same or nearby
+  # sessions are resampled together. null = ceil(sessions ** (1/3)).
+  block_length: null
+  # For the minimum detectable effect and the sample-size estimates.
+  alpha: 0.05
+  power: 0.80
+  # Reference expectancies (INR per trade) for "trades needed" estimates.
+  reference_effects_inr: [1.0, 2.0]
+
+acceptance:
+  # Predefined criteria for the final assessment. All must hold to
+  # conclude SUPPORTS_FURTHER_EVALUATION:
+  #   - out-of-sample trades exist under the frozen capital and risk rules
+  #   - lower bound of the bootstrap CI for net expectancy > 0
+  #   - at least this fraction of folds with trades has positive net expectancy
+  #   - net expectancy under the "conservative" cost scenario > 0
+  # FAILED_PREDEFINED_CRITERIA when signals exist but none can be executed
+  # under the frozen capital/risk rules, or when the CI's upper bound < 0.
+  # INCONCLUSIVE otherwise. PENDING_DATA when no usable data exists.
+  min_positive_fold_fraction: 0.6
+  conservative_scenario: conservative

@@ -1,0 +1,74 @@
+# Phase 14 acceptance rules: PREDECLARED and VERSIONED.
+#
+# Every experiment records this file's SHA-256 when it is created and is judged
+# by that version. Changing any rule needs a new acceptance_version; it never
+# changes how an existing experiment is judged. Thresholds are deliberately
+# configurable, not statistical guarantees; the rationale is given beside each.
+
+acceptance_version: accept-v1
+
+splits:
+  # Chronological, after the indicator warm-up, never shuffled.
+  #   development: the candidate may be designed while looking at it
+  #   validation:  acceptance is judged here, in `validation_folds` consecutive folds
+  #   final:       untouched out-of-sample check, run at most ONCE per experiment
+  development_fraction: 0.4
+  validation_fraction: 0.3
+  final_fraction: 0.3
+  # Sessions dropped between splits. Outcomes close the same day (intraday
+  # strategy), so one session is enough to stop any trade or indicator window
+  # from straddling two splits.
+  embargo_sessions: 1
+  validation_folds: 3
+
+minimum_evidence:
+  # Below these the result is INCONCLUSIVE, never PASS. 20 sessions is about a
+  # trading month; 30 closed trades per arm is the smallest sample for which a
+  # bootstrap interval of the mean difference is not dominated by single trades.
+  sessions: 20
+  closed_trades_candidate: 30
+  closed_trades_approved: 30
+
+financial:
+  # Candidate vs the currently approved system, per session, paired bootstrap.
+  # The confidence is adjusted (Bonferroni) for every experiment evaluated on an
+  # overlapping validation period, so testing many variants cannot buy a pass.
+  require_difference_ci_above_zero: true
+  confidence: 0.95
+  # A candidate may not deepen the drawdown by more than this (INR) at Rs 500
+  # capital: 1% of capital.
+  max_drawdown_worsening_inr: 5.0
+  # Share of validation folds where the candidate is not worse than approved.
+  min_fold_consistency: 0.6
+  # The improvement must survive doubled spread and slippage (AI decisions held
+  # fixed; only costs change).
+  conservative_costs:
+    spread_multiplier: 2.0
+    slippage_multiplier: 2.0
+  # The improvement must survive removing the candidate's best sessions, so a
+  # few unusually profitable sessions cannot carry a pass.
+  concentration_top_sessions_removed: 2
+  # The candidate must also beat the deterministic baseline's net P&L (it must
+  # not just be "less bad" than the approved AI system).
+  require_not_worse_than_deterministic: true
+
+ai_quality:
+  # Unsupported-claim rate may rise by at most this vs approved (absolute).
+  max_unsupported_claim_rate_increase: 0.05
+  max_invalid_output_rate: 0.10
+  max_rule_violations: 0
+  # USD per recommendation; null = not checked (prices not configured).
+  max_api_cost_per_recommendation_usd: null
+
+prospective:
+  # After approval: shadow sessions (no effect on anything) then a bounded
+  # paper canary before the candidate can become active.
+  min_shadow_sessions: 5
+  canary_sessions: 10
+  # Canary net P&L may trail the approved AI arm by at most this over the
+  # canary period (INR), and must have 0 rule violations.
+  canary_max_net_shortfall_inr: 5.0
+
+statistics:
+  resamples: 2000
+  seed: 20261020

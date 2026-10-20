@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Keeps the read-only paper-trading dashboard running at http://localhost:8501
+     (starts at login, restarts if it stops). Bound to localhost only. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.nseintraday.dashboard</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Applications/Projects/Intraday/nse-intraday-agent/.venv/bin/streamlit</string>
+    <string>run</string>
+    <string>/Applications/Projects/Intraday/nse-intraday-agent/app/dashboard.py</string>
+    <string>--server.port</string>
+    <string>8501</string>
+    <string>--server.address</string>
+    <string>localhost</string>
+    <string>--server.headless</string>
+    <string>true</string>
+    <string>--browser.gatherUsageStats</string>
+    <string>false</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Applications/Projects/Intraday/nse-intraday-agent</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>30</integer>
+  <key>StandardOutPath</key>
+  <string>/Applications/Projects/Intraday/nse-intraday-agent/data/logs/dashboard.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Applications/Projects/Intraday/nse-intraday-agent/data/logs/dashboard.log</string>
+</dict>
+</plist>

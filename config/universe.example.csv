@@ -1,0 +1,4 @@
+# Copy to config/universe.csv and list NSE EQ symbols to watch with a live
+# provider (symbol = NSE trading symbol). Choose them yourself; the screener
+# still applies the price, liquidity and spread filters every session.
+symbol,name

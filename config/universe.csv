@@ -1,0 +1,56 @@
+# Built 2026-10-20T17:28:34.834440+05:30 with daily data through 2026-10-19 (python -m app.data.universe_builder). Review before use; do not change during an evaluation.
+# Source: https://growwapi-assets.groww.in/instruments/instrument.csv + Groww daily candles (read-only)
+# Rules: {"etfs_excluded": true, "exchange": "NSE", "intraday_allowed": true, "liquidity_sessions": 20, "min_avg_traded_value": 5000000.0, "price_band": [40.0, 120.0], "rank": "average traded value, descending", "series": "EQ", "top": 50}
+# Counts: {"data_errors": 1, "passed": 168, "selected": 50, "static_candidates": 1570}
+# Survivorship: built from currently listed symbols. Not a recommendation.
+symbol,name
+IFCI,IFCI
+SUZLON,Suzlon Energy
+DELTACORP,Delta Corp
+SMCGLOBAL,SMC Global Sec.
+IDBI,IDBI Bank
+IDFCFIRSTB,IDFC First Bank
+LLOYDSENGG,Lloyds Engg. Works
+GMRAIRPORT,GMR Airports
+FCL,Fineotex Chemical
+UJJIVANSFB,Ujjivan Small Fin
+VMM,Vishal Mega Mart
+PAISALO,Paisalo Digital
+SBC,SBC Exports
+SOUTHBANK,South Indian Bank
+INOXGREEN,Inox Green Energy Se
+MAHABANK,Bank of Maharashtra
+NMDC,NMDC
+FEDDERSHOL,Fedders Holding
+ZEEL,Zee Entertainment
+IRCON,Ircon International
+IRFC,IRFC
+INOXWIND,INOX Wind
+JAICORPLTD,Jai Corp
+LUMINO,Lumino Industries
+NHPC,NHPC
+SHUKRAPHAR,Shukra Medtech
+IREDA,Indian Ren. Energy
+SAGILITY,Sagility
+SKYWAYS,Skyways Air Services
+HTEL,Hy-Tech Engineers
+LEMONTREE,Lemon Tree Hotels
+FILATEX,Filatex India
+TEXRAIL,Texmaco Rail & Engg.
+ARFIN,Arfin India
+VIKRAN,Vikran Engineering
+JAYNECOIND,Jayaswal Neco Inds
+ONEPOINT,One Point One Solutions
+IEX,Indian Energy Exch.
+NBCC,NBCC (India)
+SHANKESH,Shankesh Jewellers
+LLOYDSENT,Lloyds enterprises limited
+ELECTCAST,Electrosteel Castings
+NTPCGREEN,NTPC Green Energy
+MANALIPETC,Manali Petrochemical
+JTLIND,JTL Industries
+PRANAV,Pranav Constructions
+BAJAJHFL,Bajaj Housing Fin.
+ABLBL,Aditya Birla Life
+SJVN,SJVN
+RBA,Restaurant Brands

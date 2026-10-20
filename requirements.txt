@@ -1,0 +1,12 @@
+numpy>=2.0,<2.4    # pandas 2.3 (required by growwapi) is not yet clean on numpy 2.4+
+pandas>=2.2,<3   # growwapi 1.5.0 requires pandas < 3
+pydantic>=2.7
+pydantic-settings>=2.3
+python-dotenv>=1.0
+PyYAML>=6.0
+pytest>=8.0
+streamlit>=1.40      # paper-trading dashboard (Phase 5)
+# Live Groww data (needs a paid Trading API subscription):
+growwapi==1.5.0
+pyotp>=2.9
+requests>=2.32        # HTTPS client for the LLM provider (Phase 10); already installed via growwapi

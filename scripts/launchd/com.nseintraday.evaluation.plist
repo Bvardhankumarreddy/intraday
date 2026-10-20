@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Starts the daily paper-trading evaluation at 08:55 (Mac local time = IST), Mon-Fri.
+     If the Mac is asleep at 08:55, launchd runs it as soon as the Mac wakes. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.nseintraday.evaluation</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>/Applications/Projects/Intraday/nse-intraday-agent/scripts/daily_evaluation.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>55</integer></dict>
+    <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>55</integer></dict>
+    <dict><key>Weekday</key><integer>3</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>55</integer></dict>
+    <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>55</integer></dict>
+    <dict><key>Weekday</key><integer>5</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>55</integer></dict>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Applications/Projects/Intraday/nse-intraday-agent</string>
+  <key>StandardOutPath</key>
+  <string>/Applications/Projects/Intraday/nse-intraday-agent/data/logs/launchd-evaluation.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Applications/Projects/Intraday/nse-intraday-agent/data/logs/launchd-evaluation.log</string>
+</dict>
+</plist>

@@ -1,0 +1,6 @@
+# Optional release-gate tools (NOT installed by default). When present in the
+# venv, `python -m app.ops gate` runs them; when absent it reports SKIPPED.
+# Install deliberately:  .venv/bin/pip install -r requirements-dev.txt
+ruff>=0.6
+mypy>=1.11
+pip-audit>=2.7

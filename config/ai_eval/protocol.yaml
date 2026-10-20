@@ -1,0 +1,128 @@
+# Phase 11 AI evaluation protocol: PREDECLARED.
+#
+# Fixed on 2026-10-20, before any AI-vs-baseline result existed: no historical
+# market data had been fetched, and no live paper session had been recorded.
+# Amended the same day, still before any real-data result, after synthetic
+# machinery checks: the random-veto requirement below, and the AI-system pins
+# re-taken after agent fixes (number parsing, schema field description, prompt
+# research-v3 clarifying the run-level 'overall' values), and again for the
+# Phase 14 agent hooks (prompt-variant and tool allow-list parameters; the
+# default behaviour is unchanged).
+# Every evaluation run stores this file's SHA-256. Changing any rule needs a
+# new protocol_version and a FRESH evaluation period. Results from this
+# version are never used to tune the prompt, the model or the strategy.
+
+protocol_version: ai-eval-v1
+
+# Prospective sessions before this date are never counted: they could have
+# been seen while the protocol was written.
+effective_date: 2026-10-21
+
+# Arm A, the deterministic baseline: the frozen Phase 7 baseline (settings,
+# code hash and fee schedule are verified at run time).
+baseline_file: config/baselines/orb-baseline-v1.json
+
+# Arm B, the AI-assisted system. The versions are pinned: a run whose AI
+# system differs is labelled AI_SYSTEM_DRIFT, and the holdout refuses to run.
+ai_system:
+  prompt_version: research-v3
+  model: claude-haiku-5-5
+  tool_schema_sha256: ba04e6a712b6520c11d98639ba5121c2162da7206fe34404158a0e50d8cd2672
+  agent_code_sha256: 2b0ddb6e55412d6fa43de0b4fb72484e5133dc3904313f17bc36aaa7f8bb64d1
+
+# What the AI may change relative to the baseline. This is a description of
+# the architecture, enforced by code and tests (docs/ai_evaluation.md):
+#   - It may only VETO a signal the deterministic strategy produced.
+#   - It cannot add a trade, change entry, stop, target, quantity, costs or
+#     risk limits, or approve something the risk engine rejected.
+#   - Historical replay: arm B takes a signal when the AI's assessment for it
+#     is "consider" and the agent's data gate passed. The replay's risk engine
+#     then re-checks it with arm B's own portfolio state (the live paper
+#     engine does the same).
+#   - Prospective: arm B takes a paper trade when a CANDIDATE recommendation
+#     for its signal was persisted before the paper entry fill.
+#   - AI unavailable, invalid output, not shortlisted or too late: not taken.
+
+splits:
+  # Historical sessions after the indicator warm-up, in date order, never
+  # shuffled. Each split is simulated separately from the initial capital.
+  #   development: prompt/tool work may look here
+  #   validation:  checks a development change; never the final evidence
+  #   holdout:     run ONCE per protocol version and dataset; the only
+  #                historical result reported as unbiased
+  development_fraction: 0.3
+  validation_fraction: 0.2
+  holdout_fraction: 0.5
+
+evidence_hierarchy:
+  # The model may have been trained on text covering historical sessions, so
+  # historical replay cannot rule out hindsight contamination. Prospective
+  # paper sessions on or after effective_date are the primary evidence.
+  primary: prospective
+  secondary: historical_holdout
+
+primary_metrics:
+  - net_pnl_difference_per_session    # mean over eligible sessions of (B - A), INR
+  - net_expectancy_difference         # B minus A, INR per closed trade
+secondary_metrics:
+  - max_drawdown_difference
+  - transaction_cost_difference
+  - trade_count_difference
+  - abstention_and_rejection_rates
+  - risk_rule_violations
+  - model_api_cost
+
+inclusion:
+  # Historical: every regular session in the split; a session the Phase 4
+  # dataset validation rejected is excluded for BOTH arms.
+  # Prospective: LIVE, primary sessions of the Phase 6 evaluation with status
+  # COMPLETED. INCOMPLETE and FAILED sessions are reported, never counted.
+  prospective_session_status: [COMPLETED]
+  # A closed trade linked to an unresolved reconciliation issue is excluded
+  # from both arms and listed.
+  exclude_reconciliation_flagged: true
+
+handling:
+  unfilled_orders: "never a trade; counted as unfilled for the arm that placed them"
+  partial_fills: "the candle execution model fills all-or-none; reported as 0"
+  open_positions: "never a closed trade; a position closed by data end is flagged incomplete"
+  missing_data: "historical: the session is excluded for both arms; prospective: the session is INCOMPLETE"
+  ai_failure: "the signal is not taken by arm B; counted as AI unavailable and kept in the dataset"
+
+minimum_evidence:
+  # Below any of these the conclusion is INCONCLUSIVE (insufficient evidence),
+  # which is different from "no improvement".
+  min_sessions: 20
+  min_closed_trades_per_arm: 30
+  # Signals on which the two arms decided differently. With none, the AI
+  # changed nothing and has no trading effect to measure.
+  min_discordant_signals: 10
+
+statistics:
+  # Paired circular moving-block bootstrap over sessions: each resample keeps
+  # both arms of a session together, so common market conditions cancel.
+  bootstrap_resamples: 5000
+  confidence: 0.95
+  seed: 20261020
+  block_length: null              # null = ceil(sessions ** (1/3))
+  # A difference inside +/- this (INR per session) is economically
+  # meaningless at Rs 500 capital. Only a confidence interval that lies
+  # entirely inside it supports "no meaningful difference".
+  equivalence_margin_inr_per_session: 1.0
+
+decision_rule:
+  # Applied mechanically to the primary metric over eligible sessions:
+  #   PENDING_DATA                  no eligible session
+  #   INCONCLUSIVE                  below minimum_evidence, or the interval
+  #                                 includes zero and extends beyond the margin
+  #   EVIDENCE_OF_IMPROVEMENT       CI lower bound > 0 AND net of model/API
+  #                                 cost > 0 (model cost must be known)
+  #   NO_DEMONSTRATED_IMPROVEMENT   CI upper bound < 0, or the CI lies inside
+  #                                 the equivalence margin
+  # A positive trading difference with unknown model cost stays INCONCLUSIVE.
+  require_known_model_cost_for_improvement: true
+  # Also required for EVIDENCE_OF_IMPROVEMENT: the AI's vetoes must beat random
+  # vetoes of the same number of baseline trades (one-sided share of random
+  # vetoes at least as good <= 1 - confidence). Otherwise a veto-everything AI
+  # would "improve" on any losing baseline merely by trading less.
+  require_selection_beyond_random_veto: true

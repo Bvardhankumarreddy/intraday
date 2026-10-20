@@ -1,0 +1,225 @@
+# Copy to config/settings.yaml and adjust. Environment variables override
+# these values (NSE_<SECTION>__<KEY>, e.g. NSE_RISK__RISK_PCT=0.25).
+# Never put API keys or tokens in this file - use .env.
+
+market:
+  exchange: NSE
+  timezone: Asia/Kolkata
+  pre_open_start: "09:00"
+  session_open: "09:15"
+  session_close: "15:30"
+  holidays_file: config/nse_holidays.yaml   # NSE 2026 list included; refresh yearly
+  special_sessions: []          # e.g. [{date: 2026-11-08, open: "18:00", close: "19:00", name: Muhurat}]
+
+capital:
+  initial_capital: 500          # INR
+
+risk:
+  risk_pct: 0.5                 # % of capital risked per trade (illustrative)
+  max_daily_loss: 15            # INR; the daily state locks at this realized loss
+  max_trades_per_day: 2
+  max_concurrent_positions: 1
+  max_aggregate_risk: 5         # INR, planned net loss across open positions
+  min_cash_reserve: 0           # INR never used for positions
+  max_position_value: null      # INR per position, optional
+  include_costs_in_risk: true   # net loss at stop incl. all costs must fit the budget
+  allow_margin: false           # margin/leverage is not supported
+
+execution:                      # execution-cost assumptions, labelled as estimates
+  assumed_spread_pct: 0.10      # full spread, used only without a fresh quote
+  slippage_pct_per_side: 0.05
+
+cost_review:
+  min_net_reward_risk: 1.5      # after all costs
+  desired_net_profit: 5         # INR; report shows the exit price needed for it
+  apply_current_rates_to_past_dates: false  # true only for research on past dates
+
+screening:
+  min_price: 50
+  max_price: 100
+  min_avg_traded_value: 5000000 # INR 50 lakh, average over the lookback
+  liquidity_lookback_sessions: 20
+  max_spread_pct: 0.10          # % of mid price, when reliable quotes exist
+  require_spread: true          # false only for historical research without quotes
+  allowed_series: [EQ]
+
+strategy:                       # hypotheses to test, not proven settings
+  candle_interval: 5m
+  opening_range_minutes: 15
+  relative_volume_threshold: 1.5
+  relative_volume_mode: cumulative   # cumulative | candle
+  relative_volume_lookback_sessions: 10
+  relative_volume_min_sessions: 5
+  use_ema_filter: false
+  ema_period: 20
+  max_extension_pct: 1.0        # max close distance above range high, %
+  stop_reference: signal_candle_low  # signal_candle_low | opening_range_low | opening_range_mid
+  min_risk_pct: 0.2             # stop distance bounds, % of entry
+  max_risk_pct: 3.0
+  min_reward_risk: 2.0          # before costs
+  signal_valid_minutes: 10
+  last_signal_time: "14:30"
+  eod_exit_time: "15:10"        # must be before Groww's intraday auto square-off
+
+scoring:                        # weights must sum to 100; not a probability
+  weight_liquidity: 25
+  weight_relative_volume: 25
+  weight_breakout_quality: 20
+  weight_trend: 15
+  weight_spread: 15
+  liquidity_full_score_multiple: 20
+  relative_volume_full_score: 3.0
+  trend_full_score_pct: 1.0
+
+backtest:                       # candle-only execution assumptions (simulated results)
+  max_entry_gap_pct: 0.5        # skip entry if next open is this % above the entry reference
+  max_holding_minutes: null     # optional time stop
+  target_trade_through_pct: 0   # >0: target fills only if traded this % through (sensitivity)
+  max_missing_candles_per_session: 3   # more missing -> session excluded
+  min_trades_for_evidence: 30   # fewer trades -> "INSUFFICIENT EVIDENCE"
+  output_dir: data/backtests
+
+paper:                          # paper trading (simulated orders only)
+  db_path: data/paper/paper.db  # live paper portfolio + evaluation records
+  replay_db_path: data/paper/replay.db  # replays never touch the live portfolio
+  lock_file: data/paper/paper.lock
+  grace_seconds: 5              # wait after each candle close before stepping
+  max_consecutive_failures: 5
+
+evaluation:                     # Phase 6 live paper-trading evaluation
+  min_step_coverage_pct: 90     # below this a session is INCOMPLETE, not COMPLETED
+  min_data_coverage_pct: 95
+  max_fee_schedule_age_days: 90 # older tariff verification is flagged
+  observation_target_sessions: 20
+  output_dir: data/evaluation
+
+robustness:                     # Phase 7 robustness validation (see docs/robustness.md)
+  protocol_file: config/robustness/protocol.yaml  # predeclared rules, copied into each frozen baseline
+  baselines_dir: config/baselines
+  output_dir: data/robustness
+  workers: 1                    # parallel simulations (results do not depend on it)
+
+broker:
+  name: groww                   # uses config/fees/groww_nse_equity_intraday.yaml
+  fee_schedule_file: null       # optional explicit path; "illustrative" = example model
+
+data:
+  provider: mock                # mock | historical | groww (live; needs subscription)
+  historical_dir: data/historical
+  mock_seed: 42
+  max_staleness_seconds: 120
+  max_candle_jump_pct: 20
+  universe_file: config/universe.csv   # symbols to watch with a live provider
+  retry_max_attempts: 4         # live provider calls: bounded exponential backoff
+  retry_base_delay_seconds: 0.5
+  retry_max_delay_seconds: 8
+  min_seconds_between_calls: 0.15     # Groww live-data limit is 10 requests/s
+  request_timeout_seconds: 10   # every provider request times out (Groww SDK default: never)
+  retry_jitter_fraction: 0.25   # +/- jitter on retry backoff
+  circuit_failure_threshold: 5  # consecutive failed calls before failing fast
+  circuit_cooldown_seconds: 60  # then one probe call decides
+
+log_level: INFO
+
+ops:                            # Phase 8 operations (see docs/runbooks.md)
+  backups_dir: data/backups
+  keep_backups: 14              # only surplus backups and old logs are ever pruned
+  log_dir: data/logs
+  log_retention_days: 30
+  reconciliation_dir: data/ops/reconciliation
+  min_free_disk_mb: 500         # health DEGRADED below this
+  max_step_gap_minutes: 15      # health UNHEALTHY if a running session stops stepping
+  alert_repeat_minutes: 30      # same alert re-notified at most this often
+
+llm:                            # Phase 10 language model (key: NSE_LLM_API_KEY in .env only)
+  provider: mock                # mock (offline, deterministic) | anthropic
+  model: claude-haiku-5-5       # small, inexpensive default
+  base_url: https://api.anthropic.com
+  api_version: "2023-06-01"
+  workspace_id: null            # only for keys not scoped to a workspace (anthropic-workspace-id)
+  timeout_seconds: 30
+  max_retries: 2                # transient errors only (timeouts, 429, 5xx)
+  max_output_tokens: 6000
+  temperature: null            # not sent; newer models reject it
+  input_cost_per_mtok: null     # USD per million tokens; set to track spend (never guessed)
+  output_cost_per_mtok: null
+
+agent:                          # Phase 10 AI research agent (advisory only)
+  max_candidates: 3
+  max_tool_calls: 40
+  max_model_requests: 6
+  max_runtime_seconds: 180
+  max_candle_rows: 80
+  max_history_days: 10
+  pre_session_time: "08:45"
+  post_session_time: "15:45"
+  intraday_every_n_candles: 3   # model is called only when inputs changed
+  reports_dir: data/agent/reports
+  lock_file: data/agent/agent.lock
+
+monitoring:                     # Phase 15: monitoring and drift (docs/monitoring.md)
+  db_path: data/monitoring/monitoring.db
+  alert_outbox: data/monitoring/alerts.jsonl  # local alert interface (JSON lines)
+  alert_cooldown_minutes: 30
+  snapshot_retention_days: 30
+  max_invalid_records: 0
+  max_missing_candle_pct: 5.0
+  max_quote_age_seconds: 120
+  max_spread_multiple: 3.0
+  ai_window_runs: 30
+  ai_failure_rate_warning: 0.2
+  ai_failure_rate_critical: 0.5     # -> DEGRADED_AI
+  ai_invalid_rate_warning: 0.2
+  ai_unsupported_rate_warning: 0.3
+  ai_latency_p95_warning_seconds: 30
+  ai_daily_cost_usd_warning: null   # needs llm prices; null = not checked
+  ai_min_runs_for_rates: 10
+  behaviour_change_abs: 0.4
+  volume_change_factor: 3.0
+  llm_breaker_failures: 3           # consecutive failed research runs -> stop calling the model
+  llm_breaker_cooldown_minutes: 15
+  min_trades_for_drift: 30
+  recent_window_sessions: 20
+  drift_confidence: 0.95
+  data_drift_min_samples: 30
+  data_drift_p_value: 0.01
+  losing_streak_info: 6
+  recovery_passes: 3
+  max_backup_age_hours: 48
+  override_max_minutes: 120
+
+experiments:                    # Phase 14: experiments and controlled promotion (docs/experiments.md)
+  registry_db: data/experiments/registry.db   # hash-chained version and experiment registry
+  output_dir: data/experiments
+  acceptance_file: config/experiments/acceptance.yaml   # predeclared, versioned acceptance rules
+  shadow_db_path: data/paper/shadow.db        # shadow candidate's recommendations (never gates)
+  canary_db_path: data/paper/canary.db        # bounded paper-canary portfolio
+  max_agent_runs: 600           # validation refuses before any model call above this
+
+learning:                       # Phase 13: learning pipeline (docs/learning.md); proposes, never applies
+  db_path: data/learning/learning.db
+  reports_dir: data/learning/reports
+  horizons_minutes: [15, 30, 60]          # outcome horizons after the decision (+ end of day)
+  min_sample: 20                # smaller groups are shown, never interpreted
+  min_recurring_count: 3
+  recurring_rate: 0.2           # Wilson lower bound of an error rate to call it recurring
+  confidence: 0.95
+  max_tests_per_validation_period: 5      # selection-bias guard
+  final_evaluation_start: null  # untouched final set (each proposal tests on it at most once)
+  execution_tolerance_pct: 0.1
+  cost_tolerance_inr: 0.5
+
+integrated:                     # Phase 12: baseline + AI-assisted paper arms (docs/integrated_trading.md)
+  ai_db_path: data/paper/ai_paper.db          # the AI-assisted arm's own paper portfolio
+  replay_ai_db_path: data/paper/ai_replay.db
+  reports_dir: data/integrated/reports
+  agent_every_n_candles: 1      # agent reviews every candle close (model only on changed inputs)
+
+ai_eval:                        # Phase 11: does the AI add value? (see docs/ai_evaluation.md)
+  protocol_file: config/ai_eval/protocol.yaml   # predeclared comparison rules (versioned)
+  output_dir: data/ai_eval
+  ledger_db: data/ai_eval/ledger.db             # immutable decision ledger
+  usd_inr_rate: null            # INR per USD for model costs; null = not converted (never guessed)
+  max_agent_runs: 300           # replay refuses before any model call if it would need more
+
+execution_mode: paper           # the only supported value; anything else fails at startup

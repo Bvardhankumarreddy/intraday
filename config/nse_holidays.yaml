@@ -1,0 +1,33 @@
+# NSE equity (Capital Market, "CM") trading holidays.
+#
+# Source: NSE holiday master, type=trading, segment CM
+#   https://www.nseindia.com/resources/exchange-communication-holidays
+#   (API https://www.nseindia.com/api/holiday-master?type=trading), retrieved 2026-10-19.
+# Weekend entries are listed for completeness; they don't change anything.
+# Re-check the source each year and whenever NSE announces a change.
+#
+# Muhurat trading (Diwali Laxmi Pujan, Sun 8 Nov 2026) is a special session.
+# NSE announces its timings separately; add it under market.special_sessions in
+# settings once announced. Until then the calendar treats 8 Nov as closed.
+
+holidays:
+  - {date: 2026-01-15, name: Municipal Corporation Election - Maharashtra}
+  - {date: 2026-01-26, name: Republic Day}
+  - {date: 2026-02-15, name: Mahashivratri}
+  - {date: 2026-03-03, name: Holi}
+  - {date: 2026-03-21, name: Id-Ul-Fitr (Ramadan Eid)}
+  - {date: 2026-03-26, name: Shri Ram Navami}
+  - {date: 2026-03-31, name: Shri Mahavir Jayanti}
+  - {date: 2026-04-03, name: Good Friday}
+  - {date: 2026-04-14, name: Dr. Baba Saheb Ambedkar Jayanti}
+  - {date: 2026-05-01, name: Maharashtra Day}
+  - {date: 2026-05-28, name: Bakri Id}
+  - {date: 2026-06-26, name: Muharram}
+  - {date: 2026-08-15, name: Independence Day}
+  - {date: 2026-09-14, name: Ganesh Chaturthi}
+  - {date: 2026-10-02, name: Mahatma Gandhi Jayanti}
+  - {date: 2026-10-20, name: Dussehra}
+  - {date: 2026-11-08, name: Diwali Laxmi Pujan (Muhurat trading - special session)}
+  - {date: 2026-11-10, name: Diwali-Balipratipada}
+  - {date: 2026-11-24, name: Prakash Gurpurb Sri Guru Nanak Dev}
+  - {date: 2026-12-25, name: Christmas}

@@ -1,0 +1,62 @@
+# ILLUSTRATIVE fee model - NOT any broker's actual tariff.
+#
+# Use only when no broker is selected (broker.name: illustrative). Results are
+# labelled as estimates. The statutory rows mirror the official rates in
+# groww_nse_equity_intraday.yaml. The brokerage row is invented for illustration.
+
+schedule_id: illustrative-nse-eq-intraday
+broker: illustrative
+segment: nse_equity_intraday
+illustrative: true
+version: "2026-10-19"
+verified_on: 2026-10-19
+notes:
+  - "ILLUSTRATIVE: the brokerage rule is invented, not taken from any broker."
+
+brokerage:
+  rate_pct: "0.03"
+  cap_per_order: "20"
+  rounding: paisa
+  effective_from: 2020-01-01
+  source:
+    name: Illustrative assumption (no broker selected)
+    url: "n/a"
+    retrieved_on: 2026-10-19
+
+gst:
+  rate_pct: "18"
+  effective_from: 2020-01-01
+  source:
+    name: Illustrative - 18% GST as applied by Indian brokers
+    url: https://groww.in/pricing
+    retrieved_on: 2026-10-19
+
+charges:
+  - kind: stt
+    name: Securities Transaction Tax (non-delivery sale)
+    rate_pct: "0.025"
+    side: sell
+    gst_applicable: false
+    effective_from: 2020-01-01
+    source: {name: NSE/FATAX/73524, url: "https://nsearchives.nseindia.com/content/circulars/FATAX73524.pdf", retrieved_on: 2026-10-19}
+  - kind: stamp_duty
+    name: Stamp duty (non-delivery purchase)
+    rate_pct: "0.003"
+    side: buy
+    gst_applicable: false
+    effective_from: 2020-07-01
+    source: {name: Groww intraday charges page, url: "https://groww.in/help/stocks/sx-pricing/what-are-intraday-charges", retrieved_on: 2026-10-19}
+  - kind: exchange_transaction
+    name: NSE transaction charge incl. IPFT (cash market)
+    rate_pct: "0.00307"
+    side: both
+    gst_applicable: true
+    effective_from: 2020-01-01
+    source: {name: NSE/FA/73061 (total outflow Rs 307/crore), url: "https://nsearchives.nseindia.com/content/circulars/FA73061.pdf", retrieved_on: 2026-10-19}
+  - kind: sebi_turnover_fee
+    name: SEBI turnover fee
+    rate_pct: "0.0001"
+    side: both
+    gst_applicable: true
+    effective_from: 2020-01-01
+    source: {name: Groww pricing, url: "https://groww.in/pricing", retrieved_on: 2026-10-19}

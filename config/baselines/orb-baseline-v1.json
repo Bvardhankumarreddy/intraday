@@ -1,0 +1,240 @@
+{
+  "code_files": [
+    "app/backtesting/dataset.py",
+    "app/backtesting/engine.py",
+    "app/backtesting/execution.py",
+    "app/costs/__init__.py",
+    "app/costs/break_even.py",
+    "app/costs/broker_fees.py",
+    "app/costs/calculator.py",
+    "app/costs/money.py",
+    "app/costs/schedule.py",
+    "app/costs/statutory_charges.py",
+    "app/data/memory_provider.py",
+    "app/data/models.py",
+    "app/data/validation.py",
+    "app/risk/__init__.py",
+    "app/risk/engine.py",
+    "app/risk/interfaces.py",
+    "app/risk/position_sizing.py",
+    "app/risk/risk_limits.py",
+    "app/scan/__init__.py",
+    "app/scan/__main__.py",
+    "app/scan/models.py",
+    "app/scan/pipeline.py",
+    "app/scan/snapshot.py",
+    "app/screening/__init__.py",
+    "app/screening/liquidity.py",
+    "app/screening/ranking.py",
+    "app/screening/screener.py",
+    "app/screening/universe.py",
+    "app/strategies/__init__.py",
+    "app/strategies/indicators.py",
+    "app/strategies/opening_range_breakout.py",
+    "app/utils/market_calendar.py"
+  ],
+  "code_hash": "98e17e6d700e0467bdaa233d4174607a593496d3b93c89dae94eb6c8af5b27a9",
+  "config_version": "d83dddf887d9",
+  "created_at": "2026-10-19T23:39:04.620155+05:30",
+  "execution_model_version": "candle-v1",
+  "fee_schedule": {
+    "broker": "groww",
+    "illustrative": false,
+    "schedule_id": "groww-nse-eq-intraday-2026-10",
+    "sources": [
+      {
+        "effective_from": "2026-10-19",
+        "item": "brokerage",
+        "name": "Groww Help - What are intraday charges?",
+        "note": "Also on https://groww.in/pricing ('Rs 20 or 0.1% per executed order whichever is lower, minimum Rs 5')",
+        "retrieved_on": "2026-10-19",
+        "url": "https://groww.in/help/stocks/sx-pricing/what-are-intraday-charges"
+      },
+      {
+        "effective_from": "2026-10-19",
+        "item": "gst",
+        "name": "Groww pricing - GST on brokerage, exchange, SEBI and IPFT charges",
+        "note": "",
+        "retrieved_on": "2026-10-19",
+        "url": "https://groww.in/pricing"
+      },
+      {
+        "effective_from": "2026-04-01",
+        "item": "stt",
+        "name": "NSE circular NSE/FATAX/73524 (Finance Act 2026), row 3 - no change",
+        "note": "",
+        "retrieved_on": "2026-10-19",
+        "url": "https://nsearchives.nseindia.com/content/circulars/FATAX73524.pdf"
+      },
+      {
+        "effective_from": "2026-10-19",
+        "item": "stamp_duty",
+        "name": "Groww pricing / help - stamp duty 0.003% (only buy) for intraday",
+        "note": "Rate under the Indian Stamp Act as amended (in force since 1 Jul 2020)",
+        "retrieved_on": "2026-10-19",
+        "url": "https://groww.in/help/stocks/sx-pricing/what-are-intraday-charges"
+      },
+      {
+        "effective_from": "2026-03-01",
+        "item": "exchange_transaction",
+        "name": "NSE circular NSE/FA/73061 dated 27 Feb 2026",
+        "note": "",
+        "retrieved_on": "2026-10-19",
+        "url": "https://nsearchives.nseindia.com/content/circulars/FA73061.pdf"
+      },
+      {
+        "effective_from": "2026-03-01",
+        "item": "ipft",
+        "name": "NSE circular NSE/FA/73061 dated 27 Feb 2026",
+        "note": "",
+        "retrieved_on": "2026-10-19",
+        "url": "https://nsearchives.nseindia.com/content/circulars/FA73061.pdf"
+      },
+      {
+        "effective_from": "2026-10-19",
+        "item": "sebi_turnover_fee",
+        "name": "Groww pricing - SEBI turnover charge 0.0001% (buy & sell)",
+        "note": "SEBI (Stock Brokers) Regulations fee schedule, Rs 10 per crore",
+        "retrieved_on": "2026-10-19",
+        "url": "https://groww.in/pricing"
+      }
+    ],
+    "verified_on": "2026-10-19",
+    "version": "2026-10-19"
+  },
+  "format": "nse-orb-frozen-baseline/1",
+  "frozen_sha256": "a941ea128c8072dc06814e6d6b669bf72f266c0e04d3407b289d2f0f0f3f79a2",
+  "historical_adaptations": {
+    "cost_review.apply_current_rates_to_past_dates": {
+      "reason": "the broker tariff is verified only from its retrieval date; current rates are applied to earlier sessions and labelled retroactive",
+      "value": true
+    },
+    "screening.require_spread": {
+      "reason": "historical candles carry no bid/ask quotes; the spread screen is reported as unavailable and costs use the assumed spread",
+      "value": false
+    }
+  },
+  "name": "orb-baseline-v1",
+  "protocol_sha256": "7641e2ae3396ef308dc688a1257b578141157c39161817de030e152c88322cd1",
+  "protocol_text": "# Phase 7 robustness evaluation protocol: PREDECLARED.\n#\n# Every rule here was fixed on 2026-10-19, before any historical market data\n# was fetched or any strategy result was seen. `python -m app.robustness freeze`\n# copies this file, with its SHA-256, into the frozen baseline. Changing it\n# afterwards does not affect an existing frozen baseline. A changed protocol\n# needs a new baseline name and a fresh evaluation.\n#\n# Nothing in this file is ever tuned from results, and nothing is selected\n# automatically.\n\nprotocol_version: p7-v1\n\nwalk_forward:\n  # Window lengths in tradable sessions (after warm-up). null = derive from\n  # the data with the rule below (S = tradable sessions):\n  #   test       = max(min_test_sessions, floor(S / 8))\n  #   validation = test\n  #   train      = 2 x test\n  #   folds roll forward by `test`, so the test windows tile the data after\n  #   the first train + validation without overlapping.\n  # Why: a test window needs at least a trading week to hold a few signals;\n  # S/8 gives about 5 folds at any data length. Training is twice the test so\n  # each fold has more history for parameter-stability checks than it is\n  # judged on.\n  train_sessions: null\n  validation_sessions: null\n  test_sessions: null\n  min_test_sessions: 5\n\ncost_scenarios:\n  # Multipliers apply to the frozen execution assumptions; fee rates are\n  # always the frozen broker schedule. Fees are never double counted: spread\n  # and slippage are separate cost lines on reference fill prices.\n  - name: base\n  - name: slippage_x2\n    slippage_multiplier: 2\n  - name: slippage_x4\n    slippage_multiplier: 4\n  - name: spread_x2\n    spread_multiplier: 2\n  - name: spread_x3\n    spread_multiplier: 3\n  - name: target_trade_through\n    # Less favourable fills: a target counts only if traded 0.05% through.\n    target_trade_through_pct: 0.05\n  - name: conservative\n    slippage_multiplier: 2\n    spread_multiplier: 2\n    target_trade_through_pct: 0.05\n\nsensitivity:\n  # One parameter at a time around the frozen baseline. All values are run\n  # and reported, including unfavourable ones.\n  one_at_a_time:\n    - parameter: strategy.relative_volume_threshold\n      values: [1.2, 1.5, 2.0, 2.5]\n    - parameter: strategy.opening_range_minutes\n      values: [15, 30]\n    - parameter: strategy.stop_reference\n      values: [signal_candle_low, opening_range_low, opening_range_mid]\n    - parameter: strategy.min_reward_risk\n      values: [1.5, 2.0, 2.5, 3.0]\n    - parameter: strategy.use_ema_filter\n      values: [false, true]\n    - parameter: screening.min_avg_traded_value\n      values: [2500000, 5000000, 10000000]\n    - parameter: screening.max_spread_pct\n      values: [0.05, 0.10, 0.20]\n      untestable: \"no historical bid/ask quotes: the spread screen cannot be applied to\n        historical candles, so every value gives the same result\"\n  # Two-parameter grid, used for the heatmap.\n  grid_2d:\n    x: {parameter: strategy.relative_volume_threshold, values: [1.2, 1.5, 2.0, 2.5]}\n    y: {parameter: strategy.min_reward_risk, values: [1.5, 2.0, 2.5, 3.0]}\n  # Adjacent one-at-a-time values are flagged UNSTABLE when net expectancy\n  # changes sign, or when the trade count changes by more than this fraction.\n  unstable_trade_count_change: 0.5\n\nregimes:\n  # Market proxy: this symbol's candles if it is in the dataset, otherwise\n  # the equal-weight average of every dataset symbol (labelled as such). The\n  # proxy is never part of the strategy universe.\n  benchmark_symbol: NIFTYBEES\n  # Session trend from the proxy's open-to-close return (%).\n  trend_threshold_pct: 0.75\n  # Volatility = proxy (high - low) / open for the session. Liquidity = sum of\n  # close x volume over all strategy symbols. Both are compared with the\n  # median of the previous `lookback_sessions` sessions (prior data only).\n  # Sessions without that much history are \"unclassified\".\n  lookback_sessions: 20\n  high_volatility_ratio: 1.5\n  low_volatility_ratio: 0.75\n  high_liquidity_ratio: 1.25\n  low_liquidity_ratio: 0.8\n  # Entry-price bands (INR), left-closed.\n  price_bands: [50, 60, 70, 80, 90, 100]\n  # Groups with fewer trades are shown but marked too small to interpret.\n  min_trades_to_interpret: 10\n\ncomparison_baselines:\n  # Chosen before any results. See docs/robustness.md for why each is relevant.\n  # passive_liquid_long: each session, at entry_time, buy as many whole\n  # shares as cash allows of the eligible stock (same screen, price band and\n  # liquidity rules, judged at entry_time) with the highest average traded\n  # value, at the open of the candle starting at entry_time. Exit at the\n  # open of the first candle at or after the strategy's eod_exit_time. Same\n  # fees, spread and slippage. No stop.\n  entry_time: \"09:30\"\n  # benchmark_proxy: the same rule applied to regimes.benchmark_symbol.\n\nstatistics:\n  bootstrap_resamples: 5000\n  confidence: 0.95\n  seed: 20261019\n  # Moving-block bootstrap over sessions. Trades on the same or nearby\n  # sessions are resampled together. null = ceil(sessions ** (1/3)).\n  block_length: null\n  # For the minimum detectable effect and the sample-size estimates.\n  alpha: 0.05\n  power: 0.80\n  # Reference expectancies (INR per trade) for \"trades needed\" estimates.\n  reference_effects_inr: [1.0, 2.0]\n\nacceptance:\n  # Predefined criteria for the final assessment. All must hold to\n  # conclude SUPPORTS_FURTHER_EVALUATION:\n  #   - out-of-sample trades exist under the frozen capital and risk rules\n  #   - lower bound of the bootstrap CI for net expectancy > 0\n  #   - at least this fraction of folds with trades has positive net expectancy\n  #   - net expectancy under the \"conservative\" cost scenario > 0\n  # FAILED_PREDEFINED_CRITERIA when signals exist but none can be executed\n  # under the frozen capital/risk rules, or when the CI's upper bound < 0.\n  # INCONCLUSIVE otherwise. PENDING_DATA when no usable data exists.\n  min_positive_fold_fraction: 0.6\n  conservative_scenario: conservative\n",
+  "settings": {
+    "backtest": {
+      "max_entry_gap_pct": 0.5,
+      "max_holding_minutes": null,
+      "max_missing_candles_per_session": 3,
+      "min_trades_for_evidence": 30,
+      "output_dir": "<PROJECT_ROOT>/data/backtests",
+      "target_trade_through_pct": 0.0
+    },
+    "broker": {
+      "fee_schedule_file": null,
+      "name": "groww"
+    },
+    "capital": {
+      "initial_capital": 500.0
+    },
+    "cost_review": {
+      "apply_current_rates_to_past_dates": false,
+      "desired_net_profit": 5.0,
+      "min_net_reward_risk": 1.5
+    },
+    "data": {
+      "historical_dir": "<PROJECT_ROOT>/data/historical",
+      "max_candle_jump_pct": 20.0,
+      "max_staleness_seconds": 120,
+      "min_seconds_between_calls": 0.15,
+      "mock_seed": 42,
+      "provider": "groww",
+      "retry_base_delay_seconds": 0.5,
+      "retry_max_attempts": 4,
+      "retry_max_delay_seconds": 8.0,
+      "universe_file": "<PROJECT_ROOT>/config/universe.csv"
+    },
+    "evaluation": {
+      "max_fee_schedule_age_days": 90,
+      "min_data_coverage_pct": 95.0,
+      "min_step_coverage_pct": 90.0,
+      "observation_target_sessions": 20,
+      "output_dir": "<PROJECT_ROOT>/data/evaluation"
+    },
+    "execution": {
+      "assumed_spread_pct": 0.1,
+      "slippage_pct_per_side": 0.05
+    },
+    "log_level": "INFO",
+    "market": {
+      "exchange": "NSE",
+      "holidays_file": "<PROJECT_ROOT>/config/nse_holidays.yaml",
+      "pre_open_start": "09:00:00",
+      "session_close": "15:30:00",
+      "session_open": "09:15:00",
+      "special_sessions": [],
+      "timezone": "Asia/Kolkata"
+    },
+    "paper": {
+      "db_path": "<PROJECT_ROOT>/data/paper/paper.db",
+      "grace_seconds": 5,
+      "lock_file": "<PROJECT_ROOT>/data/paper/paper.lock",
+      "max_consecutive_failures": 5,
+      "replay_db_path": "<PROJECT_ROOT>/data/paper/replay.db"
+    },
+    "risk": {
+      "allow_margin": false,
+      "include_costs_in_risk": true,
+      "max_aggregate_risk": 5.0,
+      "max_concurrent_positions": 1,
+      "max_daily_loss": 15.0,
+      "max_position_value": null,
+      "max_trades_per_day": 2,
+      "min_cash_reserve": 0.0,
+      "risk_pct": 0.5
+    },
+    "robustness": {
+      "baselines_dir": "<PROJECT_ROOT>/config/baselines",
+      "output_dir": "<PROJECT_ROOT>/data/robustness",
+      "protocol_file": "<PROJECT_ROOT>/config/robustness/protocol.yaml",
+      "workers": 1
+    },
+    "scoring": {
+      "liquidity_full_score_multiple": 20.0,
+      "relative_volume_full_score": 3.0,
+      "trend_full_score_pct": 1.0,
+      "weight_breakout_quality": 20.0,
+      "weight_liquidity": 25.0,
+      "weight_relative_volume": 25.0,
+      "weight_spread": 15.0,
+      "weight_trend": 15.0
+    },
+    "screening": {
+      "allowed_series": [
+        "EQ"
+      ],
+      "liquidity_lookback_sessions": 20,
+      "max_price": 100.0,
+      "max_spread_pct": 0.1,
+      "min_avg_traded_value": 5000000.0,
+      "min_price": 50.0,
+      "require_spread": true
+    },
+    "strategy": {
+      "candle_interval": "5m",
+      "ema_period": 20,
+      "eod_exit_time": "15:10:00",
+      "last_signal_time": "14:30:00",
+      "max_extension_pct": 1.0,
+      "max_risk_pct": 3.0,
+      "min_reward_risk": 2.0,
+      "min_risk_pct": 0.2,
+      "opening_range_minutes": 15,
+      "relative_volume_lookback_sessions": 10,
+      "relative_volume_min_sessions": 5,
+      "relative_volume_mode": "cumulative",
+      "relative_volume_threshold": 1.5,
+      "signal_valid_minutes": 10,
+      "stop_reference": "signal_candle_low",
+      "use_ema_filter": false
+    }
+  },
+  "strategy_fingerprint": "b78527989035ca03ee792d4472f89614eeb52b87ac7fc09b3347ab5d076d34c4",
+  "strategy_version": "orb-long-v1"
+}
