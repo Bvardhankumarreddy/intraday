@@ -11,6 +11,7 @@ step python -m app.learning outcomes             # outcomes whose windows have p
 step python -m app.learning review
 step python -m app.learning analyse
 step python -m app.monitoring run --full         # Phase 15: incl. performance drift
+step python -m app.notify daily-summary          # WhatsApp summary (if configured)
 step python -m app.ops backup                                       # baseline paper DB
 step python -m app.ops backup --db /app/data/paper/ai_paper.db      # AI-assisted arm
 step python -m app.ops prune --apply             # retention (never trading records)

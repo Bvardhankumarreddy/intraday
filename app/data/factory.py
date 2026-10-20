@@ -49,10 +49,19 @@ def build_groww_provider(settings: Settings, calendar: MarketCalendar) -> Market
             "live Groww data needs NSE_BROKER_API_KEY plus NSE_BROKER_TOTP_SECRET (TOTP) or "
             "NSE_BROKER_API_SECRET (approval key) in the environment, and an active Groww "
             "Trading API subscription")
-    secret = lambda v: v.get_secret_value() if v is not None else None  # noqa: E731
-    client = GrowwSdkClient(settings.broker_api_key.get_secret_value(),
-                            api_secret=secret(settings.broker_api_secret),
-                            totp_secret=secret(settings.broker_totp_secret),
-                            timeout=settings.data.request_timeout_seconds)
-    return GrowwMarketDataProvider(client, calendar, load_universe(settings.data.universe_file),
-                                   settings)
+    return groww_provider(settings, calendar, load_universe(settings.data.universe_file))
+
+
+def groww_provider(settings: Settings, calendar: MarketCalendar,
+                   instruments: list[Instrument], client=None) -> MarketDataProvider:
+    """The read-only Groww adapter for an explicit instrument list (e.g. the
+    universe builder). This module is the only place that constructs it."""
+    from app.data.groww_provider import GrowwMarketDataProvider, GrowwSdkClient
+
+    if client is None:
+        secret = lambda v: v.get_secret_value() if v is not None else None  # noqa: E731
+        client = GrowwSdkClient(settings.broker_api_key.get_secret_value(),
+                                api_secret=secret(settings.broker_api_secret),
+                                totp_secret=secret(settings.broker_totp_secret),
+                                timeout=settings.data.request_timeout_seconds)
+    return GrowwMarketDataProvider(client, calendar, instruments, settings)

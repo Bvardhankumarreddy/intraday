@@ -44,7 +44,8 @@ def register_secret(value: str | None) -> None:
 
 
 def register_settings_secrets(settings) -> None:
-    for name in ("broker_api_key", "broker_api_secret", "broker_totp_secret", "llm_api_key"):
+    for name in ("broker_api_key", "broker_api_secret", "broker_totp_secret", "llm_api_key",
+                 "whatsapp_token"):
         v = getattr(settings, name, None)
         if v is not None:
             register_secret(v.get_secret_value())

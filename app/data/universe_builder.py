@@ -149,8 +149,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--limit", type=int, help="check only the first N candidates (testing)")
     args = ap.parse_args(argv)
 
-    from app.data.factory import load_universe
-    from app.data.groww_provider import GrowwMarketDataProvider, GrowwSdkClient
+    from app.data.factory import groww_provider, load_universe
     from app.utils.market_calendar import MarketCalendar
 
     settings = load_settings()
@@ -172,16 +171,17 @@ def main(argv: list[str] | None = None) -> int:
     instruments = pd.read_csv(INSTRUMENT_CSV_URL, low_memory=False)
     paced = settings.model_copy(update={"data": settings.data.model_copy(update={
         "min_seconds_between_calls": max(0.25, settings.data.min_seconds_between_calls)})})
-    secret = lambda v: v.get_secret_value() if v is not None else None  # noqa: E731
-    client = GrowwSdkClient(settings.broker_api_key.get_secret_value(),
-                            api_secret=secret(settings.broker_api_secret),
-                            totp_secret=secret(settings.broker_totp_secret),
-                            timeout=settings.data.request_timeout_seconds)
     today = datetime.now(cal.tz).date()
     print(f"{len(static_candidates(instruments))} NSE EQ intraday-eligible symbols; fetching "
           "daily candles (about 4 per second) ...")
-    result = build(paced, cal, lambda inst: GrowwMarketDataProvider(client, cal, inst, paced),
-                   instruments, args.top, today, args.limit)
+    shared = {}
+
+    def factory(inst):  # one login, reused by the provider (only factory.py builds it)
+        p = groww_provider(paced, cal, inst, shared.get("client"))
+        shared["client"] = p.client
+        return p
+
+    result = build(paced, cal, factory, instruments, args.top, today, args.limit)
     c = result["counts"]
     print(f"checked {c['static_candidates']}, data errors {c['data_errors']}, passed "
           f"{c['passed']}, selected {c['selected']}")

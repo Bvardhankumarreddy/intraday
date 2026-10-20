@@ -45,6 +45,7 @@ REQUIRED_DOCS = ["README.md", "docs/runbooks.md", "docs/security.md", "docs/phas
                  "docs/ai_evaluation.md", "docs/phase11_audit.md",
                  "docs/integrated_trading.md", "docs/phase12_report.md",
                  "docs/learning.md", "docs/experiments.md", "docs/monitoring.md",
+                 "docs/deployment.md", "docs/whatsapp.md",
                  "docs/architecture.md", ".env.example"]
 
 
@@ -131,7 +132,8 @@ def secret_scan(root: Path = PROJECT_ROOT, secrets: list[str] | None = None) -> 
 
         s = load_settings()
         secrets = [v.get_secret_value() for v in (s.broker_api_key, s.broker_api_secret,
-                                                   s.broker_totp_secret, s.llm_api_key) if v]
+                                                   s.broker_totp_secret, s.llm_api_key,
+                                                   s.whatsapp_token) if v]
     secrets = [x for x in secrets if len(x) >= 6]
     findings = []
     for path in _scan_files(root):

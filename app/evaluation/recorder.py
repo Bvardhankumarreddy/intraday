@@ -177,7 +177,8 @@ def _flatten(d: dict, prefix: str = "") -> dict:
 
 def settings_snapshot(settings: Settings) -> dict:
     return settings.model_dump(mode="json", exclude={
-        "broker_api_key", "broker_api_secret", "broker_totp_secret", "llm_api_key"})
+        "broker_api_key", "broker_api_secret", "broker_totp_secret", "llm_api_key",
+        "whatsapp_token", "whatsapp"})
 
 
 class EvaluationRecorder:

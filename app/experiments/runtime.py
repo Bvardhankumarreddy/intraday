@@ -120,4 +120,12 @@ def build_session(settings, calendar, provider, a_store, b_store, llm=None, llm_
     engine.attach_monitor(SessionMonitor(settings, {
         "A": a_store, "B": b_store,
         **{x.name: x.engine.store for x in extras if x.engine is not None}}))
+    if settings.whatsapp.enabled:
+        from app.monitoring.alerts import MonitorStore
+        from app.notify.events import SessionEvents
+        from app.notify.whatsapp import Notifications
+
+        engine.hooks.append(SessionEvents(settings, {"A": a_store, "B": b_store},
+                                          Notifications(settings, MonitorStore(
+                                              settings.monitoring.db_path))))
     return engine

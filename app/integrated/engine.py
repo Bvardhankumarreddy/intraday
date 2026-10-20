@@ -122,6 +122,7 @@ class IntegratedEngine:
         self.extras = list(extras)
         # Phase 15: monitoring hooks (None = Phase 12 behaviour) and an LLM breaker.
         self.monitor = None
+        self.hooks: list = []  # after-step hooks, e.g. WhatsApp events (isolated)
         self._paused: dict[str, list] = {}
         self._llm_failures = 0
         self._breaker_until: datetime | None = None
@@ -242,6 +243,11 @@ class IntegratedEngine:
         finally:
             if self.monitor is not None:
                 self.monitor.after_step(now)
+            for hook in self.hooks:
+                try:
+                    hook.after_step(now)
+                except Exception as exc:  # noqa: BLE001 - a hook never breaks trading
+                    log.error(f"after-step hook failed: {type(exc).__name__}")
 
     def _step(self, now: datetime, day: date) -> StepResult:
         result = self.baseline.step(now)  # baseline first; its errors propagate

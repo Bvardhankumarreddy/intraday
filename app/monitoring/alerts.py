@@ -158,6 +158,14 @@ class AlertCenter:
         self.ms, self.settings = ms, settings
         self.notifiers = notifiers if notifiers is not None else [
             LogNotifier(), OutboxNotifier(settings.monitoring.alert_outbox)]
+        if notifiers is None and settings.whatsapp.enabled:
+            from app.notify.whatsapp import (Notifications, WhatsAppAlertNotifier,
+                                             WhatsAppSender)
+
+            sender = WhatsAppSender(settings)
+            if not sender.configured():  # only a fully configured channel is added
+                self.notifiers.append(WhatsAppAlertNotifier(Notifications(settings, ms,
+                                                                          sender)))
         self.cooldown = timedelta(minutes=settings.monitoring.alert_cooldown_minutes)
 
     def _event(self, alert_id: str, kind: str, now: datetime, detail: dict) -> None:

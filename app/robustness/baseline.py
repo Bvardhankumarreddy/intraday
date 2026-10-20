@@ -44,7 +44,8 @@ from app.costs.schedule import load_fee_schedule, schedule_path
 from app.robustness.protocol import Protocol, load_protocol, protocol_from_text
 
 FORMAT = "nse-orb-frozen-baseline/1"
-SECRETS = {"broker_api_key", "broker_api_secret", "broker_totp_secret", "llm_api_key"}
+SECRETS = {"broker_api_key", "broker_api_secret", "broker_totp_secret", "llm_api_key",
+           "whatsapp_token"}
 # Sections that can change a decision, a fill, a cost or a risk check.
 FINGERPRINT_SECTIONS = ("market", "capital", "risk", "screening", "strategy", "scoring",
                         "execution", "cost_review", "backtest", "broker")

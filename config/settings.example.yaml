@@ -157,6 +157,22 @@ agent:                          # Phase 10 AI research agent (advisory only)
   reports_dir: data/agent/reports
   lock_file: data/agent/agent.lock
 
+whatsapp:                       # Meta WhatsApp Cloud API alerts (docs/whatsapp.md); research only
+  enabled: false
+  api_version: v23.0            # use the version shown in your Meta app
+  phone_number_id: null         # Meta "Phone number ID" of the SENDER (not a secret)
+  recipients: []                # your own number(s), e.g. ["919876543210"]; max 3
+  template_name: nse_alert      # APPROVED Utility template with ONE body variable {{1}}
+  template_language: en
+  send_signals: true            # AI-assisted CANDIDATE recommendations
+  send_fills: true              # paper entries
+  send_exits: true              # paper exits with net P&L
+  send_alerts: true             # monitoring alerts + recoveries
+  min_alert_severity: WARNING
+  send_daily_summary: true      # 16:00
+  max_messages_per_day: 60      # cost/spam guard
+  # access token: environment only -> NSE_WHATSAPP_TOKEN
+
 monitoring:                     # Phase 15: monitoring and drift (docs/monitoring.md)
   db_path: data/monitoring/monitoring.db
   alert_outbox: data/monitoring/alerts.jsonl  # local alert interface (JSON lines)

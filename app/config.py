@@ -16,13 +16,14 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from datetime import date, time
 from enum import StrEnum
 from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -489,6 +490,44 @@ class MonitoringConfig(_Section):
     override_max_minutes: int = Field(120, ge=5)
 
 
+class WhatsAppConfig(_Section):
+    """Meta WhatsApp Cloud API notifications (research alerts, never orders).
+    Excluded from ``Settings.version()``: delivery cannot affect a decision.
+    The access token is the secret NSE_WHATSAPP_TOKEN."""
+
+    enabled: bool = False
+    api_version: str = Field("v23.0", pattern=r"^v\d+\.\d+$")
+    base_url: str = "https://graph.facebook.com"
+    phone_number_id: str | None = Field(None, pattern=r"^\d{5,20}$")   # Meta sender id
+    # Recipient(s) in international format without "+", e.g. 9198xxxxxxxx. Only your
+    # own number: sending buy/sell calls to others is investment advice (SEBI).
+    recipients: list[str] = Field(default_factory=list)
+    # Business-initiated messages need an APPROVED template: one body variable {{1}}.
+    template_name: str = "nse_alert"
+    template_language: str = "en"
+    timeout_seconds: float = Field(10.0, gt=0, le=60)
+    max_retries: int = Field(2, ge=0, le=5)
+    # What to send.
+    send_signals: bool = True            # AI-assisted arm CANDIDATE recommendations
+    send_fills: bool = True              # paper entries filled (both arms)
+    send_exits: bool = True              # paper exits with net P&L (both arms)
+    send_alerts: bool = True             # monitoring alerts and recoveries
+    min_alert_severity: Literal["INFO", "WARNING", "CRITICAL"] = "WARNING"
+    send_daily_summary: bool = True      # 16:00 summary (post-session job)
+    max_messages_per_day: int = Field(60, ge=1)   # cost and spam guard
+
+    @field_validator("recipients")
+    @classmethod
+    def _numbers(cls, v: list[str]) -> list[str]:
+        for n in v:
+            if not re.fullmatch(r"\d{10,15}", n):
+                raise ValueError(f"recipient {n!r} must be digits in international format "
+                                 "without '+', e.g. 919876543210")
+        if len(v) > 3:
+            raise ValueError("at most 3 recipients (your own numbers only)")
+        return v
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="NSE_",
@@ -518,6 +557,7 @@ class Settings(BaseSettings):
     learning: LearningConfig = LearningConfig()
     experiments: ExperimentsConfig = ExperimentsConfig()
     monitoring: MonitoringConfig = MonitoringConfig()
+    whatsapp: WhatsAppConfig = WhatsAppConfig()
     # The ONLY supported execution mode. Simulated (paper) orders only; real
     # orders are placed manually by the user outside this application. Any
     # other value (e.g. "live") is rejected at startup. There is no live
@@ -532,6 +572,7 @@ class Settings(BaseSettings):
     broker_api_secret: SecretStr | None = None  # Groww approval-key secret (daily approval)
     broker_totp_secret: SecretStr | None = None  # Groww TOTP secret (no daily approval)
     llm_api_key: SecretStr | None = None
+    whatsapp_token: SecretStr | None = None  # Meta WhatsApp Cloud API access token
 
     @classmethod
     def settings_customise_sources(
@@ -555,7 +596,11 @@ class Settings(BaseSettings):
         """Short hash of every non-secret setting, recorded on each output so
         results can be traced to the configuration that produced them."""
         data = self.model_dump(
-            mode="json", exclude={"broker_api_key", "broker_api_secret", "broker_totp_secret", "llm_api_key"}
+            mode="json", exclude={"broker_api_key", "broker_api_secret", "broker_totp_secret",
+                                  "llm_api_key", "whatsapp_token",
+                                  # Notification delivery cannot affect a decision; excluded
+                                  # so adding or changing it never re-versions an evaluation.
+                                  "whatsapp"}
         )
         # Paths inside the project are hashed relative to it, so moving the
         # whole project (e.g. to a server) keeps the version. Phase 9 fix: the
@@ -599,7 +644,7 @@ def _read_yaml(path: Path) -> dict[str, Any]:
     if not isinstance(content, dict):
         raise ValueError(f"{path} must contain a YAML mapping at the top level")
     for secret in ("broker_api_key", "broker_api_secret", "broker_totp_secret",
-                   "llm_api_key"):
+                   "llm_api_key", "whatsapp_token"):
         if secret in content:
             raise ValueError(f"{secret} must be set via environment, not {path}")
     return content

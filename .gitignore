@@ -8,3 +8,4 @@ data/*
 !data/.gitkeep
 *.db
 *.sqlite
+.history/

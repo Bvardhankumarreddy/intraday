@@ -339,7 +339,7 @@ def test_approval_requires_person_confirmation_and_passing_evidence(sessions, tm
 
 
 def test_active_configuration_never_changes(sessions, tmp_path):
-    watched = sorted((PROJECT_ROOT / "config").rglob("*.*")) + \
+    watched = sorted(p for p in (PROJECT_ROOT / "config").rglob("*.*") if p.is_file()) + \
         [APP / "agent" / "prompts.py"]
     before = {p: hashlib.sha256(p.read_bytes()).hexdigest() for p in watched}
     ls, s, *_ = pipeline(sessions, tmp_path, min_recurring_count=1, recurring_rate=0.01)

@@ -60,7 +60,8 @@ def write_report(result: BacktestResult, metrics: dict, dataset: HistoricalDatas
         "fee_schedule_id": result.fee_schedule_id,
         "settings": settings.model_dump(
             mode="json", exclude={"broker_api_key", "broker_api_secret",
-                                   "broker_totp_secret", "llm_api_key"}),
+                                   "broker_totp_secret", "llm_api_key",
+                                   "whatsapp_token"}),
     })
     _dump(root / "dataset_quality.json", quality)
     _dump(root / "metrics.json", {"disclaimer": DISCLAIMER, **metrics})

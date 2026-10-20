@@ -120,7 +120,8 @@ def apply_components(settings, components: dict):
     return new.model_copy(update={"llm_api_key": settings.llm_api_key,
                                   "broker_api_key": settings.broker_api_key,
                                   "broker_api_secret": settings.broker_api_secret,
-                                  "broker_totp_secret": settings.broker_totp_secret})
+                                  "broker_totp_secret": settings.broker_totp_secret,
+                                  "whatsapp_token": settings.whatsapp_token})
 
 
 def agent_kwargs(components: dict) -> dict:
