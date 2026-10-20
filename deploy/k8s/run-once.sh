@@ -38,8 +38,14 @@ spec:
         - {name: secrets, secret: {secretName: nse-env, defaultMode: 0400}}
         - {name: tmp, emptyDir: {sizeLimit: 256Mi}}
 EOF
-sudo k3s kubectl -n nse-intraday wait --for=condition=complete --for=condition=failed \
-  "job/$NAME" --timeout=600s >/dev/null 2>&1 || true
+# Poll until the Job succeeds or fails (kubectl wait with two --for flags would wait
+# for BOTH conditions and never return).
+i=0
+while [ $i -lt 300 ]; do
+  S=$(sudo k3s kubectl -n nse-intraday get job "$NAME" -o jsonpath='{.status.succeeded}{.status.failed}')
+  [ -n "$S" ] && break
+  sleep 2; i=$((i + 1))
+done
 sudo k3s kubectl -n nse-intraday logs "job/$NAME" --tail=200
 STATUS=$(sudo k3s kubectl -n nse-intraday get job "$NAME" -o jsonpath='{.status.succeeded}')
 sudo k3s kubectl -n nse-intraday delete job "$NAME" --wait=false >/dev/null
