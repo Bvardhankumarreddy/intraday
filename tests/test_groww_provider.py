@@ -98,6 +98,30 @@ def test_cumulative_volume_decrease_rejected(calendar):
                                                              date(2025, 3, 12))
 
 
+def test_null_cumulative_volume_carried_forward(calendar):
+    # Observed live 2026-10-21: a candle with prices but volume None.
+    rows = candles()
+    rows[2][5] = None
+    s = make(FakeClient(candles=rows), calendar).get_candles("ABC", "5m", date(2025, 3, 12),
+                                                             date(2025, 3, 12))
+    assert s.frame["volume"].tolist() == [1000, 1001, 0, 2005]  # session total unchanged
+    assert s.frame["close"].iloc[2] == pytest.approx(70.3)       # prices kept
+    assert any("null cumulative volume" in w for w in s.warnings)
+    rows = candles()
+    rows[0][5] = None                                            # first candle of the session
+    s = make(FakeClient(candles=rows), calendar).get_candles("ABC", "5m", date(2025, 3, 12),
+                                                             date(2025, 3, 12))
+    assert s.frame["volume"].tolist() == [0, 2001, 1002, 1003]
+
+
+def test_null_price_still_rejected(calendar):
+    rows = candles()
+    rows[1][4] = None
+    with pytest.raises(DataQualityError):
+        make(FakeClient(candles=rows), calendar).get_candles("ABC", "5m", date(2025, 3, 12),
+                                                             date(2025, 3, 12))
+
+
 def test_stale_quote_rejected(calendar):
     p = make(FakeClient(quote=documented_quote(ms_ago=600_000)), calendar)  # 10 minutes old
     with pytest.raises(DataQualityError, match="old"):

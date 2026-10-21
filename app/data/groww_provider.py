@@ -345,6 +345,7 @@ class GrowwMarketDataProvider(MarketDataProvider):
             chunk_start = chunk_end + timedelta(days=1)
         if not rows:
             raise DataUnavailableError(f"Groww returned no {iv.label} candles for {symbol}")
+        null_volume = 0
         try:
             frame = pd.DataFrame(rows, columns=CANDLE_COLUMNS)
             frame["timestamp"] = pd.to_datetime(frame["timestamp"], unit="s", utc=True) \
@@ -358,6 +359,7 @@ class GrowwMarketDataProvider(MarketDataProvider):
                     not frame["timestamp"].duplicated().any():
                 # Out-of-order or duplicate rows are left as received, so the
                 # validator below rejects them with the right reason.
+                null_volume = int(frame["volume"].isna().sum())
                 frame["volume"] = cumulative_to_candle_volume(frame, symbol)
         except (ValueError, TypeError) as exc:
             raise DataQualityError(f"Groww candles for {symbol} malformed: {exc}") from exc
@@ -367,9 +369,12 @@ class GrowwMarketDataProvider(MarketDataProvider):
         if not report.is_valid:
             raise DataQualityError(f"Groww candles for {symbol} rejected: "
                                    + "; ".join(i.message for i in report.errors), report.errors)
+        warnings = [i.message for i in report.warnings]
+        if null_volume:
+            warnings.append(f"{null_volume} candles had null cumulative volume from Groww; "
+                            "carried forward (those candles count 0 volume)")
         return CandleSeries(symbol=symbol, interval=iv, frame=frame, mode=self.mode,
-                            source=self.name, retrieved_at=self.clock(),
-                            warnings=[i.message for i in report.warnings])
+                            source=self.name, retrieved_at=self.clock(), warnings=warnings)
 
     def health(self) -> dict:
         return {"state": self.state.value, "last_error": self.last_error,
@@ -389,15 +394,26 @@ def epoch_to_datetime(value: float | int) -> datetime:
 
 def cumulative_to_candle_volume(frame: pd.DataFrame, symbol: str) -> pd.Series:
     """Groww reports intraday volume cumulatively per session. Difference it
-    within each session; reject the batch if it ever decreases."""
+    within each session; reject the batch if it ever decreases.
+
+    Live Groww data sometimes has a candle whose volume is null (observed
+    2026-10-21, e.g. SUZLON 15:15). Its prices are kept and its cumulative
+    reading is carried forward from the previous candle (0 at the session
+    start), so that candle's own volume is 0 and the next reported candle
+    absorbs the difference: session totals are unchanged and relative volume
+    is understated, never overstated. Null prices are still rejected by the
+    validator."""
     session = frame["timestamp"].dt.date
-    diffs = frame["volume"].groupby(session).diff()
+    cum = frame["volume"]
+    if cum.isna().any():
+        cum = cum.groupby(session).ffill().fillna(0)
+    diffs = cum.groupby(session).diff()
     if (diffs < 0).any():
         first = frame.loc[diffs < 0, "timestamp"].iloc[0]
         raise DataQualityError(
             f"Groww candles for {symbol}: cumulative volume decreased at {first}; the "
             "cumulative-volume assumption does not hold for this batch")
-    return diffs.fillna(frame["volume"]).astype("int64")
+    return diffs.fillna(cum).astype("int64")
 
 
 def _num(v) -> float | None:
