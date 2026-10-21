@@ -41,11 +41,13 @@ from __future__ import annotations
 import json
 from datetime import date, datetime, timedelta
 
+from app.data.models import DataMode
 from app.paper.engine import PaperEngine, StepResult
 from app.utils.logging import get_logger
 
 log = get_logger("app.integrated")
 PAUSED_STATUS = "PAUSED_BY_MONITORING"
+QUOTE_PREFETCH_MAX_SHIFT = timedelta(seconds=60)
 
 
 def ai_gate(store, cand, now: datetime) -> tuple[bool, str]:
@@ -126,6 +128,7 @@ class IntegratedEngine:
         self._paused: dict[str, list] = {}
         self._llm_failures = 0
         self._breaker_until: datetime | None = None
+        self.clock = None  # live wall clock (None = datetime.now); see _prefetch_quotes
 
     def attach_monitor(self, monitor) -> None:
         """Pause gates for every arm plus checks after each step. A paused arm
@@ -233,9 +236,9 @@ class IntegratedEngine:
         return out
 
     def step(self, now: datetime) -> StepResult:
-        now = now.astimezone(self.calendar.tz)
-        day = now.date()
         self.snapshot.reset()
+        now = self._prefetch_quotes(now.astimezone(self.calendar.tz))
+        day = now.date()
         if self.monitor is not None:
             self._paused = self.monitor.paused(now)
         try:
@@ -248,6 +251,35 @@ class IntegratedEngine:
                     hook.after_step(now)
                 except Exception as exc:  # noqa: BLE001 - a hook never breaks trading
                     log.error(f"after-step hook failed: {type(exc).__name__}")
+
+    def _prefetch_quotes(self, now: datetime) -> datetime:
+        """Live data only: fetch every quote into the step snapshot first, then
+        evaluate the step at the time that data had arrived.
+
+        A live quote is stamped with its exchange last-trade time, which is
+        usually a few seconds after the scheduled step time. The point-in-time
+        guard in ``build_snapshot`` (frozen baseline code, there to prevent
+        look-ahead in replays) rejects a quote stamped after the evaluation
+        time, so without this nearly every liquid stock lost its spread and
+        screened INSUFFICIENT_DATA (observed 2026-10-21). Evaluating at the
+        receipt time is honest: every quote used was known when the decision
+        was made. Replays and backtests (non-live data) are unchanged."""
+        if self.snapshot.mode is not DataMode.LIVE:
+            return now
+        try:
+            instruments = self.snapshot.list_instruments()
+        except Exception:  # noqa: BLE001 - the scan reports the same cached error
+            return now
+        for inst in instruments:
+            try:
+                self.snapshot.get_quote(inst.symbol)
+            except Exception:  # noqa: BLE001 - cached; every consumer sees the same error
+                pass
+        after = (self.clock() if self.clock else datetime.now(self.calendar.tz)) \
+            .astimezone(self.calendar.tz)
+        # Only a short, forward move; a step driven at another time (a replay of
+        # live-labelled data, a clock problem) keeps its own time.
+        return after if now <= after <= now + QUOTE_PREFETCH_MAX_SHIFT else now
 
     def _step(self, now: datetime, day: date) -> StepResult:
         result = self.baseline.step(now)  # baseline first; its errors propagate

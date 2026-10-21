@@ -477,3 +477,24 @@ def test_dashboard_integrated_view(calendar, tmp_path, monkeypatch):
     at.sidebar.radio[0].set_value("Integrated").run()
     assert not at.exception
     assert any("Integrated paper trading" in s.value for s in at.subheader)
+
+
+def test_live_quotes_stamped_after_step_time_are_used(tmp_path, calendar):
+    """Observed live 2026-10-21: quotes carry the exchange last-trade time, a few
+    seconds after the scheduled step, and were discarded as 'after evaluation
+    time', so every stock screened INSUFFICIENT_DATA. Live steps now fetch quotes
+    first and evaluate at their receipt time; replays keep the step time."""
+    from tests.paper_helpers import quote
+
+    when = t("09:30")
+    for mode, expect_spread in ((DataMode.LIVE, True), (DataMode.SIMULATED, False)):
+        eng = make(calendar, tmp_path / mode.value, mode=mode,
+                   screening={"require_spread": True})
+        eng.snapshot.inner.quotes = {"SYNTH": quote("SYNTH", when + timedelta(seconds=3), 70.6)}
+        eng.clock = lambda: when + timedelta(seconds=8)
+        eng.open_session(DAY, when - timedelta(minutes=30))
+        eng.step(when)
+        row = eng.baseline.store.all("SELECT * FROM watchlist WHERE symbol = 'SYNTH'")[0]
+        assert (row["spread_pct"] is not None) is expect_spread, (mode, dict(row))
+        if not expect_spread:
+            assert "after evaluation time" in row["reason"]
