@@ -307,16 +307,24 @@ class GrowwMarketDataProvider(MarketDataProvider):
             raise DataQualityError(f"Groww quote for {symbol} missing fields: {exc}") from exc
         if ts_raw is None:
             raise DataQualityError(f"Groww quote for {symbol} has no last_trade_time")
+        bid, bid_qty = _num(raw.get("bid_price")), _int(raw.get("bid_quantity"))
+        ask, ask_qty = _num(raw.get("offer_price")), _int(raw.get("offer_quantity"))
+        if bid is None and ask is None:
+            # Observed live 2026-10-22: bid_price/offer_price null while the order
+            # book depth carries the best bid and ask. Use its top level (real
+            # exchange data, nothing estimated).
+            bid, bid_qty = _top_of_book(raw, "buy")
+            ask, ask_qty = _top_of_book(raw, "sell")
         quote = Quote(
             symbol=symbol,
             last_price=price,
             timestamp=epoch_to_datetime(ts_raw).astimezone(self.calendar.tz),
             mode=self.mode,
             source=self.name,
-            bid=_num(raw.get("bid_price")),
-            ask=_num(raw.get("offer_price")),
-            bid_qty=_int(raw.get("bid_quantity")),
-            ask_qty=_int(raw.get("offer_quantity")),
+            bid=bid,
+            ask=ask,
+            bid_qty=bid_qty,
+            ask_qty=ask_qty,
             received_at=received,
         )
         report = validate_quote(quote, received, self.settings.data.max_staleness_seconds)
@@ -418,6 +426,17 @@ def cumulative_to_candle_volume(frame: pd.DataFrame, symbol: str) -> pd.Series:
 
 def _num(v) -> float | None:
     return None if v in (None, "", 0, 0.0) else float(v)
+
+
+def _top_of_book(raw: dict, side: str) -> tuple[float | None, int | None]:
+    """Best price and quantity from ``depth[side][0]``; (None, None) if absent."""
+    try:
+        level = (raw.get("depth") or {}).get(side) or []
+        top = level[0] if level else {}
+        price = _num(top.get("price"))
+        return (price, _int(top.get("quantity")) if price is not None else None)
+    except (AttributeError, TypeError, ValueError):
+        return None, None
 
 
 def _int(v) -> int | None:

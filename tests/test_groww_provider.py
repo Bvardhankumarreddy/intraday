@@ -98,6 +98,20 @@ def test_cumulative_volume_decrease_rejected(calendar):
                                                              date(2025, 3, 12))
 
 
+def test_bid_ask_from_depth_when_top_fields_null(calendar):
+    # Observed live 2026-10-22: bid_price/offer_price null, depth populated.
+    raw = documented_quote() | {"bid_price": None, "bid_quantity": None, "offer_price": None,
+                                "offer_quantity": None,
+                                "depth": {"buy": [{"price": 71.05, "quantity": 1741},
+                                                  {"price": 71.0, "quantity": 9}],
+                                          "sell": [{"price": 71.15, "quantity": 312}]}}
+    q = make(FakeClient(quote=raw), calendar).get_quote("ABC")
+    assert (q.bid, q.ask, q.bid_qty, q.ask_qty) == (71.05, 71.15, 1741, 312)
+    empty = raw | {"depth": {"buy": [], "sell": []}}
+    q = make(FakeClient(quote=empty), calendar).get_quote("ABC")
+    assert (q.bid, q.ask) == (None, None)  # still unavailable; nothing estimated
+
+
 def test_null_cumulative_volume_carried_forward(calendar):
     # Observed live 2026-10-21: a candle with prices but volume None.
     rows = candles()
